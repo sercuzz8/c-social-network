@@ -1,0 +1,9 @@
+none
+"amico_di" "bruno" 1;
+"amico_di" "alice" "bruno" 1;
+"amico_di" "bruno" 2;
+"amico_di" "bruno" 2; "compagno_di" "dario" 1;
+"amico_di" "bruno" 2; "compagno_di" "dario" 1;
+"amico_di" "bruno" 2; "compagno_di" "alice" "dario" 1;
+"amico_di" "bruno" 2; "compagno_di" "alice" "bruno" "dario" 1;
+"amico_di" "bruno" 1; "compagno_di" "bruno" "dario" 1;
