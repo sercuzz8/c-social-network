@@ -129,19 +129,16 @@ type* findType(type* relation,char *typeSearched){
 
 relation* findRelation(entity **slot, type* beginType, char *origin, char* destination,char *typeSearched){
 
-    if (n_of_relations==0)
-        return NULL;
-
     entity* orig=findEntity(slot,origin);
     entity* dest=findEntity(slot,destination);
     type* ty=findType(beginType, typeSearched);
 
 
-    if (orig==NULL || destination==NULL || ty==NULL) return NULL;
+    if (n_of_relations==0 || orig==NULL || destination==NULL || ty==NULL) return NULL;
 
     relation *curr=ty->matrix[retOrder(origin)][retOrder(destination)];
 
-    while (curr!=NULL){
+    while (curr!=NULL ){
 
         if (curr->active==true && curr->origin==orig && curr->destination==dest) return curr;
 
@@ -163,41 +160,22 @@ instance* findInstance(entity* ent, char *typeSearched){
 
 }
 
-entity* make_entity(char* name){
+entity* make_entity(char* name, entity* next){
     entity* tmp = malloc(sizeof(entity));
     strcpy(tmp->name,name);
-    tmp->next=NULL;
+    tmp->next=next;
     return tmp;
 }
 
-entity* createEntity(entity **listOfUnused, char* name){
-
-    entity* tmp;
-
-    if (*listOfUnused==NULL){
-        tmp = make_entity(name);
-    }
-    else{
-        tmp=*listOfUnused;
-        (*listOfUnused)=(*listOfUnused)->next;
-        strcpy(tmp->name,name);
-        tmp->next=NULL;
-    }
-
-    return tmp;
-
-}
-
-void monitorEntity(entity** slot, entity **listOfUnused,char *name ){
+void monitorEntity(entity** slot, char *name ){
 
     int order=retOrder(name);
-    entity* tmp=NULL;
     entity* curr=slot[order];
     entity* previous=curr;
 
     //Se il grafo non ha nomi nella lettera corrispondente, si crea l'entità
     if (slot[order]==NULL){
-        slot[order]= make_entity(name);
+        slot[order]= make_entity(name, NULL);
         n_of_entities++;
     }
     else if (strcmp(curr->name,name)==0){
@@ -205,9 +183,7 @@ void monitorEntity(entity** slot, entity **listOfUnused,char *name ){
     }
     else if (strcmp(curr->name,name)>0){
         //Inserisci in testa
-        tmp=createEntity(listOfUnused,name);
-        tmp->next=slot[order];
-        slot[order]=tmp;
+        slot[order]=make_entity(name, slot[order]);
         n_of_entities++;
     }
     else if (strcmp(curr->name,name)<0){
@@ -223,21 +199,16 @@ void monitorEntity(entity** slot, entity **listOfUnused,char *name ){
             return;
         }
         else if (strcmp(curr->name,name)>0){
-            tmp=createEntity(listOfUnused,name);
-            previous->next=tmp;
-            tmp->next=curr;
+            previous->next=make_entity(name, curr);
             n_of_entities++;
         }
         else if (strcmp(curr->name,name)<0 && curr->next!=NULL){
-            tmp=createEntity(listOfUnused,name);
-            previous->next=tmp;
-            tmp->next=curr;
+            previous->next=make_entity(name, curr);
             n_of_entities++;
         }
         else{
             //Ok, nessuno ha un nome che precede il nuovo, in ordine alfabetico, lo si mette in coda;
-            tmp=createEntity(listOfUnused,name);
-            curr->next=tmp;
+            curr->next=make_entity(name, NULL);
             n_of_entities++;
         }
 
@@ -438,7 +409,7 @@ void deactivateRelations( entity** slot, type *beginType, char *name){
 
 }
 
-void demonitorEntity(entity** slot,type *rel,entity **listOfUnused,char *name){
+void demonitorEntity(entity** slot,type *rel, char *name){
 
     entity *curr = slot[retOrder(name)];
     entity *prev=curr;
@@ -448,8 +419,7 @@ void demonitorEntity(entity** slot,type *rel,entity **listOfUnused,char *name){
         deactivateRelations(slot,rel,name);
         curr->instances=NULL;
         slot[retOrder(name)] = curr->next;
-        curr->next=*listOfUnused;
-        *listOfUnused=curr;
+        curr->next=NULL;
         n_of_entities--;
         return;
     }
@@ -465,8 +435,7 @@ void demonitorEntity(entity** slot,type *rel,entity **listOfUnused,char *name){
     deactivateRelations(slot, rel ,name);
     curr->instances=NULL;
     prev->next = curr->next;
-    curr->next=*listOfUnused;
-    *listOfUnused=curr;
+    curr->next=NULL;
     n_of_entities--;
 }
 
@@ -588,11 +557,11 @@ int main() {
         if (strstr(line, "addent")) {
             addent=true;
             sscanf(&line[6], "%s", name1);
-            monitorEntity( pool, &unusedEntity, name1);
+            monitorEntity( pool, name1);
             fgets(line, LINELENGTH, stdin);
         } else if (strstr(line, "delent")) {
             sscanf(&line[6], "%s", name1);
-            demonitorEntity(pool,types,&unusedEntity,name1);
+            demonitorEntity(pool,types, name1);
             fgets(line, LINELENGTH, stdin);
         } else if (strstr(line, "addrel")) {
             sscanf(&line[6], "%s %s %s", name1, name2, instance);
