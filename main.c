@@ -99,27 +99,6 @@ type* find_type(type* relation,char *type_searched){
     return NULL;
 }
 
-relation* find_relation(entity **slot, type* begin_type, char *origin, char* destination,char *type_searched){
-
-    entity* orig=find_entity(slot,origin);
-    entity* dest=find_entity(slot,destination);
-    type* ty=find_type(begin_type, type_searched);
-
-
-    if (n_of_relations==0 || orig==NULL || destination==NULL || ty==NULL) return NULL;
-
-    relation *curr=ty->matrix[ret_order(origin)][ret_order(destination)];
-
-    while (curr!=NULL ){
-
-        if (curr->origin==orig && curr->destination==dest) return curr;
-
-        curr=curr->next;
-    }
-
-    return curr;
-}
-
 instance* find_instance(entity* ent, char *type_searched){
 
     instance* curr=ent->instances;
@@ -273,8 +252,25 @@ relation* make_relation(entity* origin, entity* destination, relation* next){
     return tmp;
 }
 
-bool instaurate_relation(entity** slot,type **types, char *origin, char* destination,char *type_searched){
+relation* find_relation(entity **slot, type* begin_type, char *origin, char* destination,char *type_searched){
 
+    entity* orig=find_entity(slot,origin);
+    entity* dest=find_entity(slot,destination);
+    type* ty=find_type(begin_type, type_searched);
+
+
+    if (n_of_relations==0 || orig==NULL || destination==NULL || ty==NULL) return NULL;
+
+    relation *curr=ty->matrix[ret_order(origin)][ret_order(destination)];
+
+    while (curr!=NULL && (curr->origin!=orig || curr->destination!=dest)){
+        curr=curr->next;
+    }
+
+    return curr;
+}
+
+bool instaurate_relation(entity** slot,type **types, char *origin, char* destination,char *type_searched){
 
     instance *tmpInstance=NULL;
     entity *to_origin=find_entity(slot,origin);
@@ -305,20 +301,26 @@ bool instaurate_relation(entity** slot,type **types, char *origin, char* destina
     return true;
 }
 
-void deactivate_relation(entity** slot, type* rel,  char *origin, char *destination,char *type_searched){
+void deactivate_relation(entity** slot, type* types,  char *origin, char *destination,char *type_searched){
 
-    type* ty=find_type(rel, type_searched);
+    entity* orig=find_entity(slot,origin);
+    entity* dest=find_entity(slot,destination);
+    type* ty=find_type(types, type_searched);
 
-    if (ty==NULL) return;
-
-    relation *found=find_relation(slot, rel, origin,destination, type_searched);
-
-    if (found==NULL) return;
+    if (n_of_relations==0 || orig==NULL || destination==NULL || ty==NULL) return;
     
-    if (found->origin!=NULL) {
+    relation* curr=ty->matrix[ret_order(origin)][ret_order(destination)];
+
+    while (curr!=NULL && (curr->origin!=orig || curr->destination!=dest)){
+        curr=curr->next;
+    }
+
+    if (curr==NULL) return;
+    
+    if (curr->origin!=NULL) {
         instance *tmp=NULL;
-        found->origin=NULL;
-        tmp=find_instance(found->destination, type_searched);
+        curr->origin=NULL;
+        tmp=find_instance(curr->destination, type_searched);
         if (tmp->enter_rel==ty->max_rel){
             ty->max_rel=0;
         }
