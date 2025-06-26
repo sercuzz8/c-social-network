@@ -124,7 +124,7 @@ void monitor_entity(entity** slot, char *name ){
     entity* curr=slot[order];
     entity* previous=curr;
 
-    //Se il grafo non ha nomi nella lettera corrispondente, si crea l'entità
+    // If the graph does not have names on the letter, create the entity
     if (slot[order]==NULL){
         slot[order]= make_entity(name, NULL);
         n_of_entities++;
@@ -133,20 +133,20 @@ void monitor_entity(entity** slot, char *name ){
         return;
     }
     else if (strcmp(curr->name,name)>0){
-        //Inserisci in testa
+        //Insert on head
         slot[order]=make_entity(name, slot[order]);
         n_of_entities++;
     }
     else if (strcmp(curr->name,name)<0){
 
-        //Se li ha, si usa l'insertion sort
+        //If you have it, use insertion sort
         while (strcmp(curr->name,name)<0 && curr->next!=NULL){
             previous=curr;
             curr=curr->next;
         }
 
         if (strcmp(curr->name,name)==0){
-            //Tranne se l'entità è già presente
+            //If the entity is not already present
             return;
         }
         else if (strcmp(curr->name,name)>0){
@@ -158,7 +158,7 @@ void monitor_entity(entity** slot, char *name ){
             n_of_entities++;
         }
         else{
-            //Ok, nessuno ha un nome che precede il nuovo, in ordine alfabetico, lo si mette in coda;
+            //None has the name that precedes the new one alphabetically, put it in tail;
             curr->next=make_entity(name, NULL);
             n_of_entities++;
         }
@@ -208,7 +208,7 @@ type* insertion_sort(type **relation, char *type_searched){
 
 type* create_type(type **relation, char *type_searched){
 
-    //Se ancora non c'è alcuna relazione che inizia per quella lettera, creo
+    //If no instance exists already, create it
     if (*relation==NULL){
         *relation=make_type(type_searched, NULL, 0);
         return *relation;
@@ -217,7 +217,7 @@ type* create_type(type **relation, char *type_searched){
         return *relation;
     }
     else if (strcmp((*relation)->type_name,type_searched)>0){
-        //Inserisci in testa
+        //Insert in head
         *relation=make_type(type_searched, *relation, 0);
         return *relation;
     }
@@ -516,8 +516,7 @@ void main() {
     char name2[NAME_LENGTH];
     char instance[RELATION_LENGTH];
 
-    //Inizia a prendere le informazioni
-
+    //Begin parsing
     fgets(line, LINE_LENGTH, stdin);
 
     while (end == false) {
