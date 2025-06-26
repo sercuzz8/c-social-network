@@ -1,5 +1,4 @@
 #!/bin/sh
-#Questo è un commento e non viene interpretato
 gcc -o  main main.c
 
 for input_file in test/*.in; do

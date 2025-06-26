@@ -309,24 +309,34 @@ void deactivate_relation(entity** slot, type* types,  char *origin, char *destin
 
     if (n_of_relations==0 || orig==NULL || destination==NULL || ty==NULL) return;
     
-    relation* curr=ty->matrix[ret_order(origin)][ret_order(destination)];
+    relation* curr = ty->matrix[ret_order(origin)][ret_order(destination)];
+    relation* prev = NULL;
 
-    while (curr!=NULL && (curr->origin!=orig || curr->destination!=dest)){
-        curr=curr->next;
+    while (curr != NULL && (curr->origin != orig || curr->destination != dest)) {
+        prev = curr;
+        curr = curr->next;
     }
 
-    if (curr==NULL) return;
+    if (curr == NULL) return;
+
+    // Unlink and free the current node
+    if (prev == NULL) {
+        // Removing the head of the list
+        ty->matrix[ret_order(origin)][ret_order(destination)] = curr->next;
+    } else {
+        prev->next = curr->next;
+    }
     
-    if (curr->origin!=NULL) {
-        instance *tmp=NULL;
-        curr->origin=NULL;
-        tmp=find_instance(curr->destination, type_searched);
-        if (tmp->enter_rel==ty->max_rel){
-            ty->max_rel=0;
+    instance* tmp = find_instance(dest, type_searched);
+    if (tmp != NULL) {
+        if (tmp->enter_rel == ty->max_rel) {
+            ty->max_rel = 0;
         }
         tmp->enter_rel--;
-        n_of_relations--;
     }
+
+    free(curr);
+    n_of_relations--;
 }
 
 void deactivate_relations( entity** slot, type *begin_type, char *name){
@@ -360,15 +370,24 @@ void deactivate_relations( entity** slot, type *begin_type, char *name){
 
         for (int row = low; row <= high; row++) {
 
+            relation* prev_relation = NULL;
             curr_relation = curr_type->matrix[row][ret_order(name)];
 
             while (curr_relation != NULL) {
 
                 if (curr_relation->destination == ref) {
-                    curr_relation->origin = false;
+                    if (prev_relation==NULL){
+                        curr_type->matrix[row][ret_order(name)] = curr_relation->next;
+                    }
+                    else{
+                        prev_relation->next = curr_relation->next;
+                    }
+                    curr_relation = curr_relation->next;
                 }
-                curr_relation = curr_relation->next;
-
+                else{
+                    prev_relation = curr_relation;
+                    curr_relation = curr_relation->next;
+                }
             }
         }
 
