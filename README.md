@@ -1,4 +1,4 @@
-# redemption-arc
+# SoCial Network
 Fixing my old university project to use proper data structures
 
 # The project
