@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 #define NAME_LENGTH 34
-#define relationship_LENGTH 25
+#define TYPE_LENGTH 25
 #define LINE_LENGTH 78
 #define CHAR_LIST 64
 #define NUMBER 27
@@ -14,8 +14,6 @@
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
-int n_of_entities = 0;
-int n_of_relationships = 0;
 int low = 0;
 int high = 0;
 
@@ -33,7 +31,7 @@ typedef struct relationships{
 
 
 typedef struct types{
-    char type_name[relationship_LENGTH];
+    char type_name[TYPE_LENGTH];
     relationship* matrix[CHAR_LIST][CHAR_LIST];
     struct types* next;
 }type;
@@ -68,7 +66,7 @@ entity* make_entity(char* name, entity* next){
 
 entity* find_entity(entity** slot, char* name){
 
-    if (n_of_entities == 0) return NULL;
+    if (slot==NULL) return NULL;
 
     entity* curr = slot[hash(name)];
     while (curr != NULL && strcmp(curr->name, name)<=0){
@@ -85,8 +83,8 @@ type* make_type(char* type_searched, type* next){
     return tmp;
 }
 
-type* find_type(type* relationship,char* type_searched){
-    type* curr = relationship;
+type* find_type(type* type_,char* type_searched){
+    type* curr = type_;
     while (curr != NULL && strcmp(curr->type_name, type_searched)<=0){
         if (strcmp(curr->type_name,type_searched) == 0) return curr;
         curr = curr->next;
@@ -94,10 +92,10 @@ type* find_type(type* relationship,char* type_searched){
     return NULL;
 }
 
-instance* make_instance(instance* next, type* relationship, int enter_rel){
+instance* make_instance(instance* next, type* type_, int enter_rel){
     instance* tmp = malloc(sizeof(instance));
     tmp->next = next;
-    tmp->type = relationship;
+    tmp->type = type_;
     tmp->enter_rel = 0;
     return tmp;
 }
@@ -119,7 +117,6 @@ void addent(entity** slot, char* name ){
     // If the graph does not have names on the letter, create the entity
     if (slot[order] == NULL){
         slot[order] = make_entity(name, NULL);
-        n_of_entities++;
     }
     else if (strcmp(curr->name,name) == 0){
         return;
@@ -127,7 +124,6 @@ void addent(entity** slot, char* name ){
     else if (strcmp(curr->name,name)>0){
         //Insert on head
         slot[order]=make_entity(name, slot[order]);
-        n_of_entities++;
     }
     else if (strcmp(curr->name,name)<0){
 
@@ -143,16 +139,13 @@ void addent(entity** slot, char* name ){
         }
         else if (strcmp(curr->name,name)>0){
             previous->next = make_entity(name, curr);
-            n_of_entities++;
         }
         else if (strcmp(curr->name,name)<0 && curr->next != NULL){
             previous->next = make_entity(name, curr);
-            n_of_entities++;
         }
         else{
             //None has the name that precedes the new one alphabetically, put it in tail;
             curr->next = make_entity(name, NULL);
-            n_of_entities++;
         }
 
     }
@@ -209,14 +202,14 @@ type* create_type(type** relationship, char* type_searched){
     instaurate_relationship(relationship, type_searched);
 }
 
-instance* instantiate(entity* destination, type* relationship, char* type_searched){
+instance* instantiate(entity* destination, type* type_, char* type_searched){
     instance* ref = find_instance(destination,type_searched);
 
     if (ref != NULL){
         return ref;
     }
 
-    destination->instances = make_instance(destination->instances, relationship, 0);
+    destination->instances = make_instance(destination->instances, type_, 0);
     return destination->instances;
 }
 
@@ -232,7 +225,7 @@ relationship* find_relationship(entity** slot, type* begin_type, entity* origin,
 
     type* type = find_type(begin_type, type_searched);
 
-    if (n_of_relationships == 0 || type == NULL) return NULL;
+    if (type == NULL || type->matrix[hash(origin->name)][hash(destination->name)]==NULL) return NULL;
 
     relationship* curr = type->matrix[hash(origin->name)][hash(destination->name)];
 
@@ -260,7 +253,6 @@ bool addrel(entity** slot,type** types, char* origin, char* destination,char* ty
     
     instance* tmp_instance = instantiate(to_destination,created,type_searched);
     tmp_instance->enter_rel++;
-    n_of_relationships++;
 
     created->matrix[hash(origin)][hash(destination)]=
                 make_relationship(to_origin, to_destination, created->matrix[hash(origin)][hash(destination)]);
@@ -274,7 +266,7 @@ void delrel(entity** slot, type* types,  char* origin, char* destination,char* t
     entity* dest = find_entity(slot,destination);
     type* type = find_type(types, type_searched ) ;
 
-    if (n_of_relationships == 0 || orig == NULL || destination == NULL || type == NULL) return;
+    if (orig == NULL || destination == NULL || type == NULL || type->matrix[hash(origin)][hash(destination)] == NULL ) return;
     
     relationship* curr = type->matrix[hash(origin)][hash(destination)];
     relationship* prev = NULL;
@@ -300,7 +292,6 @@ void delrel(entity** slot, type* types,  char* origin, char* destination,char* t
     }
 
     free(curr);
-    n_of_relationships--;
 }
 
 void delete_relationshipships(entity** slot, type* begin_type, char* name){
@@ -368,7 +359,6 @@ void delent(entity** slot,type* rel, char* name){
         curr->instances = NULL;
         slot[hash(name)] = curr->next;
         curr->next = NULL;
-        n_of_entities--;
         return;
     }
 
@@ -384,7 +374,6 @@ void delent(entity** slot,type* rel, char* name){
     curr->instances = NULL;
     prev->next = curr->next;
     curr->next = NULL;
-    n_of_entities--;
 }
 
 
@@ -458,7 +447,7 @@ void main() {
     char line[LINE_LENGTH];
     char name1[NAME_LENGTH];
     char name2[NAME_LENGTH];
-    char instance[relationship_LENGTH];
+    char instance[TYPE_LENGTH];
 
     //Begin parsing
     while (!strstr(line, "end")) {
