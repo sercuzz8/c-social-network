@@ -108,98 +108,72 @@ instance* find_instance(entity* ent, char* type_searched){
     return curr;
 }
 
-void addent(entity** slot, char* name ){
-
+// The alphabetical order has to be kept for printing purposes, hence insertion sort is used
+void addent(entity** slot, char* name) {
     int order = hash(name);
-    entity* curr = slot[order];
-    entity* previous = curr;
 
-    // If the graph does not have names on the letter, create the entity
-    if (slot[order] == NULL){
+    // No entities, insert
+    if (!slot[order]) {
         slot[order] = make_entity(name, NULL);
-    }
-    else if (strcmp(curr->name,name) == 0){
+        high = MAX(high, order);
+        low = MIN(low, order);
         return;
     }
-    else if (strcmp(curr->name,name)>0){
-        //Insert on head
-        slot[order]=make_entity(name, slot[order]);
-    }
-    else if (strcmp(curr->name,name)<0){
 
-        //If you have it, use insertion sort
-        while (strcmp(curr->name,name)<0 && curr->next != NULL){
-            previous = curr;
-            curr = curr->next;
-        }
-
-        if (strcmp(curr->name,name) == 0){
-            //If the entity is not already present
-            return;
-        }
-        else if (strcmp(curr->name,name)>0){
-            previous->next = make_entity(name, curr);
-        }
-        else if (strcmp(curr->name,name)<0 && curr->next != NULL){
-            previous->next = make_entity(name, curr);
-        }
-        else{
-            //None has the name that precedes the new one alphabetically, put it in tail;
-            curr->next = make_entity(name, NULL);
-        }
-
+    // Insert on head
+    if (strcmp(name, slot[order]->name) < 0) {
+        slot[order] = make_entity(name, slot[order]);
+        high = MAX(high, order);
+        low = MIN(low, order);
+        return;
     }
 
-    high = MAX(high,order);
-    low = MIN(low,order);
-}
+    entity* curr = slot[order];
+    entity* prev = NULL;
 
-type* instaurate_relationship(type** relationship, char* type_searched){
-
-    type* curr=*relationship;
-    type* prev = NULL;
-
-    while (strcmp(curr->type_name,type_searched)<0 && curr->next != NULL){
+    while (curr && strcmp(name, curr->name) > 0) {
         prev = curr;
         curr = curr->next;
     }
 
-    if (strcmp(curr->type_name,type_searched) == 0){
-        //No need to insert, the entity exists
-        return curr;
-    }
-    else if (strcmp(curr->type_name,type_searched)>0){
-        prev->next = make_type(type_searched, curr);
-        return prev->next;
-    }
-    else if (strcmp(curr->type_name,type_searched)<0 && curr->next != NULL){
-        prev->next = make_type(type_searched, curr);
-        return prev->next;
-    }
-    
-    //Insert on tail;
-    curr->next = make_type(type_searched, NULL);
-    return curr->next;
-    
+    // The entity already exists
+    if (curr && strcmp(name, curr->name) == 0)
+        return;
+
+    prev->next = make_entity(name, curr);
+    high = MAX(high, order);
+    low = MIN(low, order);    
 }
 
-type* create_type(type** relationship, char* type_searched){
 
-    //If no instance exists already, create it
-    if (*relationship == NULL){
-        *relationship = make_type(type_searched, NULL);
-        return *relationship;
-    }
-    else if (strcmp((*relationship)->type_name,type_searched) == 0){
-        return *relationship;
-    }
-    else if (strcmp((*relationship)->type_name,type_searched)>0){
-        //Insert in head
-        *relationship = make_type(type_searched, *relationship);
-        return *relationship;
-    }
+// The alphabetical order has to be kept for printing purposes, hence insertion sort is used
+type* add_type(type** types, char* type_searched){
     
-    instaurate_relationship(relationship, type_searched);
+    if (!*types || strcmp(type_searched, (*types)->type_name) < 0) {
+        // The list is null or the element has to be inserted on the head
+        *types = make_type(type_searched, *types);
+        return *types;
+    }
+
+    // The head is a match
+    if (strcmp((*types)->type_name, type_searched) == 0)
+        return *types;
+
+    type* prev = *types;
+    type* curr = prev->next;
+
+    while (curr && strcmp(curr->type_name, type_searched) < 0) {
+        prev = curr;
+        curr = curr->next;
+    }
+
+    if (curr && strcmp(curr->type_name, type_searched) == 0) {
+        return curr;  // It already exists
+    }
+
+    // Insert between prev and curr
+    prev->next = make_type(type_searched, curr);
+    return prev->next;
 }
 
 instance* instantiate(entity* destination, type* type_, char* type_searched){
@@ -225,7 +199,7 @@ relationship* find_relationship(entity** slot, type* begin_type, entity* origin,
 
     type* type = find_type(begin_type, type_searched);
 
-    if (type == NULL || type->matrix[hash(origin->name)][hash(destination->name)]==NULL) return NULL;
+    if (!type || type->matrix[hash(origin->name)][hash(destination->name)]==NULL) return NULL;
 
     relationship* curr = type->matrix[hash(origin->name)][hash(destination->name)];
 
@@ -241,11 +215,11 @@ bool addrel(entity** slot,type** types, char* origin, char* destination,char* ty
     entity* to_origin = find_entity(slot,origin);
     entity* to_destination = find_entity(slot,destination);
 
-    if (to_origin == NULL || to_destination == NULL){
+    if (!(to_origin && to_destination)){
         return false;
     }
 
-    type* created = create_type(types,type_searched);
+    type* created = add_type(types,type_searched);
 
     if (find_relationship(slot, *types, to_origin, to_destination,type_searched) != NULL){
         return false;
@@ -266,7 +240,7 @@ void delrel(entity** slot, type* types,  char* origin, char* destination,char* t
     entity* dest = find_entity(slot,destination);
     type* type = find_type(types, type_searched ) ;
 
-    if (orig == NULL || destination == NULL || type == NULL || type->matrix[hash(origin)][hash(destination)] == NULL ) return;
+    if (!(orig && destination && type && type->matrix[hash(origin)][hash(destination)])) return;
     
     relationship* curr = type->matrix[hash(origin)][hash(destination)];
     relationship* prev = NULL;
@@ -276,10 +250,10 @@ void delrel(entity** slot, type* types,  char* origin, char* destination,char* t
         curr = curr->next;
     }
 
-    if (curr == NULL) return;
+    if (!curr) return;
 
     // Unlink and free the current node
-    if (prev == NULL) {
+    if (!prev) {
         // Removing the head of the list
         type->matrix[hash(origin)][hash(destination)] = curr->next;
     } else {
@@ -328,7 +302,7 @@ void delete_relationshipships(entity** slot, type* begin_type, char* name){
             while (curr_relationship != NULL) {
 
                 if (curr_relationship->destination == ref) {
-                    if (prev_relationship == NULL){
+                    if (!prev_relationship){
                         curr_type->matrix[row][hash(name)] = curr_relationship->next;
                     }
                     else{
@@ -368,7 +342,7 @@ void delent(entity** slot,type* rel, char* name){
         curr = curr->next;
     }
 
-    if (curr == NULL) return;
+    if (!curr) return;
 
     delete_relationshipships(slot, rel ,name);
     curr->instances = NULL;
@@ -379,7 +353,7 @@ void delent(entity** slot,type* rel, char* name){
 
 void report( type* types, entity** slot) {
 
-    if (types == NULL){
+    if (!types){
         fputs("none\n",stdout);
         return;
     }
