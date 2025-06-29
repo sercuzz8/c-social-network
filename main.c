@@ -26,7 +26,6 @@ typedef struct relationships{
     struct relationships* next;
 }relationship;
 
-
 typedef struct types{
     char type_name[TYPE_LENGTH];
     relationship* matrix[CHAR_LIST][CHAR_LIST];
@@ -35,7 +34,7 @@ typedef struct types{
 
 typedef struct instances{
     type* type;
-    int enter_rel;
+    int n_occurrences;
     struct instances* next;
 }instance;
 
@@ -89,11 +88,11 @@ type* find_type(type* type_,char* type_searched){
     return NULL;
 }
 
-instance* make_instance(instance* next, type* type_, int enter_rel){
+instance* make_instance(instance* next, type* type_, int n_occurrences){
     instance* tmp = malloc(sizeof(instance));
     tmp->next = next;
     tmp->type = type_;
-    tmp->enter_rel = 0;
+    tmp->n_occurrences = 0;
     return tmp;
 }
 
@@ -211,7 +210,7 @@ bool addrel(entity** entities,type** types, char* origin, char* destination,char
     }
     
     instance* tmp_instance = instantiate(to_destination,created,type_searched);
-    tmp_instance->enter_rel++;
+    tmp_instance->n_occurrences++;
 
     created->matrix[hash(origin)][hash(destination)]=
                 make_relationship(to_origin, to_destination, created->matrix[hash(origin)][hash(destination)]);
@@ -247,13 +246,13 @@ void delrel(entity** entities, type* types,  char* origin, char* destination,cha
     
     instance* tmp = find_instance(dest, type_searched);
     if (tmp) {
-        tmp->enter_rel--;
+        tmp->n_occurrences--;
     }
 
     free(curr);
 }
 
-void delete_relationshipships(entity** entities, type* begin_type, char* name){
+void delete_relationships(entity** entities, type* begin_type, char* name){
 
     entity* ref = find_entity(entities, name);
 
@@ -271,7 +270,7 @@ void delete_relationshipships(entity** entities, type* begin_type, char* name){
 
                 if (curr_relationship->origin == ref) {
                     instance* tmp = find_instance(curr_relationship->destination, curr_type->type_name);
-                    tmp->enter_rel--;
+                    tmp->n_occurrences--;
                 }
 
                 curr_relationship = curr_relationship->next;
@@ -314,7 +313,7 @@ void delent(entity** entities,type* rel, char* name){
 
     if (curr && strcmp(curr->name,name) == 0)
     {
-        delete_relationshipships(entities,rel,name);
+        delete_relationships(entities,rel,name);
         curr->instances = NULL;
         entities[hash(name)] = curr->next;
         curr->next = NULL;
@@ -329,19 +328,32 @@ void delent(entity** entities,type* rel, char* name){
 
     if (!curr) return;
 
-    delete_relationshipships(entities, rel ,name);
+    delete_relationships(entities, rel ,name);
     curr->instances = NULL;
     prev->next = curr->next;
     curr->next = NULL;
 }
 
+int max_instances(entity** entities, type *curr_type){
+    instance* inst = NULL;
+    entity* curr_entity = NULL;
+
+    int max = 0;
+
+    for (int j = 0; j < CHAR_LIST; j++) {
+        curr_entity = entities[j];
+        while (curr_entity) {
+            inst = find_instance(curr_entity, curr_type->type_name);
+            if (inst )
+                max = MAX(inst->n_occurrences, max);
+            curr_entity = curr_entity->next;
+        }
+    }
+
+    return max;
+}
 
 void report( type* types, entity** entities) {
-
-    if (!types){
-        fputs("none\n",stdout);
-        return;
-    }
 
     bool print = false;
 
@@ -349,20 +361,10 @@ void report( type* types, entity** entities) {
 
     while (curr_type){
 
-        instance* inst = NULL;
+        int max = max_instances(entities, curr_type);
+
         entity* curr_entity = NULL;
-
-        int max = 0;
-
-        for (int j = 0; j < CHAR_LIST; j++) {
-            curr_entity = entities[j];
-            while (curr_entity) {
-                inst = find_instance(curr_entity, curr_type->type_name);
-                if (inst )
-                    max = MAX(inst->enter_rel, max);
-                curr_entity = curr_entity->next;
-            }
-        }
+        instance* inst = NULL;
 
         if (max > 0) {
 
@@ -374,18 +376,16 @@ void report( type* types, entity** entities) {
                 curr_entity = entities[j];
                 while (curr_entity) {
                     inst = find_instance(curr_entity, curr_type->type_name);
-                    if (inst && inst->enter_rel >= max) {
+                    if (inst && inst->n_occurrences == max) {
                         fputs(curr_entity->name, stdout);
                         fputs(" ", stdout);
                     }
                     curr_entity = curr_entity->next;
                 }
-
             }
 
             printf("%d", max);
             fputs("; ",stdout);
-
         }
 
         curr_type = curr_type->next;
