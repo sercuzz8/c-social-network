@@ -14,6 +14,7 @@
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
+// Entities will be an ordered hashset with co-domain 0-53 as the hash function has to be ordered
 typedef struct entities{
     char name[NAME_LENGTH];
     struct instances* instances;
@@ -39,16 +40,15 @@ typedef struct instances{
 }instance;
 
 int hash(const char* choice){
-
     if (choice[1] == '-')
         return 0;
-    else if (choice[1] == '_')
+    if (choice[1] == '_')
         return 37;
-    else if (choice[1]>='0' && choice[1] <='9')
+    if (choice[1]>='0' && choice[1] <='9')
         return 1+choice[1]-'0';
-    else if (choice[1]>='A' && choice[1] <='Z')
+    if (choice[1]>='A' && choice[1] <='Z')
         return 11+choice[1]-'A';
-    else if (choice[1]>='a' && choice[1] <='z')
+    if (choice[1]>='a' && choice[1] <='z')
         return 38+choice[1]-'a';
 
 }
@@ -79,8 +79,8 @@ type* make_type(char* type_searched, type* next){
     return tmp;
 }
 
-type* find_type(type* type_,char* type_searched){
-    type* curr = type_;
+type* find_type(type* types ,char* type_searched){
+    type* curr = types;
     while (curr && strcmp(curr->type_name, type_searched)<=0){
         if (strcmp(curr->type_name,type_searched) == 0) return curr;
         curr = curr->next;
@@ -88,17 +88,17 @@ type* find_type(type* type_,char* type_searched){
     return NULL;
 }
 
-instance* make_instance(instance* next, type* type_, int n_occurrences){
+instance* make_instance(instance* next, type* type){
     instance* tmp = malloc(sizeof(instance));
     tmp->next = next;
-    tmp->type = type_;
-    tmp->n_occurrences = 0;
+    tmp->type = type;
+    tmp->n_occurrences = 1;
     return tmp;
 }
 
-instance* find_instance(entity* ent, char* type_searched){
+instance* find_instance(entity* ent, type* type){
     instance* curr = ent->instances;
-    while (curr && strcmp(curr->type->type_name,type_searched) != 0){
+    while (curr && strcmp(curr->type->type_name,type->type_name) != 0){
         curr = curr->next;
     }
     return curr;
@@ -128,7 +128,6 @@ void addent(entity** entities, char* name) {
 
     prev->next = make_entity(name, curr);   
 }
-
 
 // The alphabetical order has to be kept for printing purposes, hence insertion sort is used
 type* add_type(type** types, char* type_searched){
@@ -160,15 +159,16 @@ type* add_type(type** types, char* type_searched){
     return prev->next;
 }
 
-instance* instantiate(entity* destination, type* type_, char* type_searched){
-    instance* ref = find_instance(destination,type_searched);
+void instantiate(entity* destination, type* type){
 
-    if (ref){
-        return ref;
+    instance* inst = find_instance(destination,type);
+
+    if (inst){
+        inst->n_occurrences++;
+        return;
     }
 
-    destination->instances = make_instance(destination->instances, type_, 0);
-    return destination->instances;
+    destination->instances = make_instance(destination->instances, type);
 }
 
 relationship* make_relationship(entity* origin, entity* destination, relationship* next){
@@ -179,13 +179,11 @@ relationship* make_relationship(entity* origin, entity* destination, relationshi
     return tmp;
 }
 
-relationship* find_relationship(entity** entities, type* begin_type, entity* origin, entity* destination,char* type_searched){
+relationship* find_relationship(entity** entities, type* begin_type, entity* origin, entity* destination,type* type_searched){
 
-    type* type = find_type(begin_type, type_searched);
+    if (!type_searched || type_searched->matrix[hash(origin->name)][hash(destination->name)]==NULL) return NULL;
 
-    if (!type || type->matrix[hash(origin->name)][hash(destination->name)]==NULL) return NULL;
-
-    relationship* curr = type->matrix[hash(origin->name)][hash(destination->name)];
+    relationship* curr = type_searched->matrix[hash(origin->name)][hash(destination->name)];
 
     while (curr && (curr->origin != origin || curr->destination != destination)){
         curr = curr->next;
@@ -205,12 +203,11 @@ bool addrel(entity** entities,type** types, char* origin, char* destination,char
 
     type* created = add_type(types,type_searched);
 
-    if (find_relationship(entities, *types, to_origin, to_destination,type_searched)){
+    if (find_relationship(entities, *types, to_origin, to_destination, created)){
         return false;
     }
     
-    instance* tmp_instance = instantiate(to_destination,created,type_searched);
-    tmp_instance->n_occurrences++;
+    instantiate(to_destination,created);
 
     created->matrix[hash(origin)][hash(destination)]=
                 make_relationship(to_origin, to_destination, created->matrix[hash(origin)][hash(destination)]);
@@ -244,7 +241,7 @@ void delrel(entity** entities, type* types,  char* origin, char* destination,cha
         prev->next = curr->next;
     }
     
-    instance* tmp = find_instance(dest, type_searched);
+    instance* tmp = find_instance(dest, type);
     if (tmp) {
         tmp->n_occurrences--;
     }
@@ -269,7 +266,7 @@ void delete_relationships(entity** entities, type* begin_type, char* name){
             while (curr_relationship) {
 
                 if (curr_relationship->origin == ref) {
-                    instance* tmp = find_instance(curr_relationship->destination, curr_type->type_name);
+                    instance* tmp = find_instance(curr_relationship->destination, curr_type);
                     tmp->n_occurrences--;
                 }
 
@@ -343,7 +340,7 @@ int max_instances(entity** entities, type *curr_type){
     for (int j = 0; j < CHAR_LIST; j++) {
         curr_entity = entities[j];
         while (curr_entity) {
-            inst = find_instance(curr_entity, curr_type->type_name);
+            inst = find_instance(curr_entity, curr_type);
             if (inst )
                 max = MAX(inst->n_occurrences, max);
             curr_entity = curr_entity->next;
@@ -375,7 +372,7 @@ void report( type* types, entity** entities) {
             for (int j = 0; j < CHAR_LIST; j++) {
                 curr_entity = entities[j];
                 while (curr_entity) {
-                    inst = find_instance(curr_entity, curr_type->type_name);
+                    inst = find_instance(curr_entity, curr_type);
                     if (inst && inst->n_occurrences == max) {
                         fputs(curr_entity->name, stdout);
                         fputs(" ", stdout);
